@@ -193,10 +193,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
               child: SingleChildScrollView(
                 controller: scroll,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                child: SelectableText(
-                  _doc.ocrText.isEmpty
-                      ? 'No text was found in this document.'
-                      : _doc.ocrText,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: SelectableText(
+                    _doc.ocrText.isEmpty
+                        ? 'No text was found in this document.'
+                        : _doc.ocrText,
+                  ),
                 ),
               ),
             ),
@@ -211,7 +214,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(_doc.title),
+        // Generated names are long; let them wrap instead of cutting off the
+        // month and year.
+        title: Text(
+          _doc.title,
+          style: theme.textTheme.titleMedium,
+          maxLines: 2,
+        ),
         actions: [
           IconButton(
             tooltip: 'Share',

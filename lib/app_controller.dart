@@ -26,7 +26,7 @@ class ProcessingStatus {
 
 /// Owns the services and the state the screens render.
 class AppController extends ChangeNotifier {
-  AppController._({
+  AppController({
     required this.settings,
     required this.store,
     required this.files,
@@ -34,7 +34,8 @@ class AppController extends ChangeNotifier {
     required this.sync,
     required this.localFolder,
     required this.googleDrive,
-  });
+    ScannerService? scanner,
+  }) : _scanner = scanner ?? ScannerService();
 
   final AppSettings settings;
   final DocumentStore store;
@@ -44,7 +45,8 @@ class AppController extends ChangeNotifier {
   final LocalFolderTarget localFolder;
   final GoogleDriveTarget googleDrive;
 
-  final _scanner = ScannerService();
+  final ScannerService _scanner;
+  bool _scannerOpen = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
 
   List<DocumentRecord> documents = const [];
@@ -68,7 +70,7 @@ class AppController extends ChangeNotifier {
     final ocr = OcrService();
     final localFolder = LocalFolderTarget();
     final googleDrive = GoogleDriveTarget(settings);
-    final controller = AppController._(
+    final controller = AppController(
       settings: settings,
       store: store,
       files: files,
@@ -87,17 +89,18 @@ class AppController extends ChangeNotifier {
       localFolder: localFolder,
       googleDrive: googleDrive,
     );
-    await controller._init();
+    await controller.start(connectivity: Connectivity().onConnectivityChanged);
     return controller;
   }
 
-  Future<void> _init() async {
+  /// Loads the library and starts syncing. [connectivity] reports network
+  /// changes, so anything still pending is retried when the network returns.
+  Future<void> start({Stream<List<ConnectivityResult>>? connectivity}) async {
     sync.addListener(_onSyncChanged);
     localFolderSupported = await localFolder.isReady();
     await refresh();
     unawaited(_refreshDriveState().then((_) => sync.sync()));
-    // Retry anything still pending as soon as the network comes back.
-    _connectivity = Connectivity().onConnectivityChanged.listen((result) {
+    _connectivity = connectivity?.listen((result) {
       if (!result.contains(ConnectivityResult.none)) sync.sync();
     });
   }
@@ -146,8 +149,16 @@ class AppController extends ChangeNotifier {
   /// Opens the camera and files whatever was scanned. Returns the new
   /// document, or null if the user backed out of the scanner.
   Future<DocumentRecord?> scan() async {
-    if (processing != null) return null;
-    final images = await _scanner.scan();
+    // A second tap while the camera is still opening must not start a
+    // second scanner on top of the first.
+    if (_scannerOpen || processing != null) return null;
+    _scannerOpen = true;
+    final List<String> images;
+    try {
+      images = await _scanner.scan();
+    } finally {
+      _scannerOpen = false;
+    }
     if (images.isEmpty) return null;
 
     processing = const ProcessingStatus('Saving pages…');

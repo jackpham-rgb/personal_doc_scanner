@@ -48,6 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(
             content: Text('Saved “${doc.title}” in ${doc.category.folder}'),
             action: SnackBarAction(label: 'View', onPressed: () => _open(doc)),
+            // Snack bars with an action stay until dismissed by default; this
+            // one is only a confirmation and must not sit over the list.
+            persist: false,
           ),
         );
     } on PlatformException catch (e) {

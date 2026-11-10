@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Uploads to Google Drive. Flutter's template only grants this to debug
+         builds. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Doc Scanner"
         android:name="${applicationName}"

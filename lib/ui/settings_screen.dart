@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../app_controller.dart';
 import '../services/sync/google_drive_target.dart';
@@ -22,30 +23,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _connecting = true);
     try {
       await _c.connectDrive();
-    } catch (e) {
+    } on GoogleSignInException catch (e) {
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Could not connect to Google Drive'),
-          content: SingleChildScrollView(
-            child: Text(
-              'Google Drive needs a one-time setup for this app (an OAuth '
-              'client for its package name and signing key). The steps are '
-              'in the README under “Google Drive setup”.\n\nDetails: $e',
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Google Drive was not connected. If you did not cancel it '
+              'yourself, check “Google Drive setup” in the README.',
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+        );
+      } else {
+        await _showDriveSetupHelp(e.description ?? e.code.name);
+      }
+    } catch (e) {
+      if (mounted) await _showDriveSetupHelp('$e');
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
+  }
+
+  Future<void> _showDriveSetupHelp(String details) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Could not connect to Google Drive'),
+        content: SingleChildScrollView(
+          child: Text(
+            'Google Drive needs a one-time setup for this app (an OAuth '
+            'client for its package name and signing key). The steps are '
+            'in the README under “Google Drive setup”.\n\nDetails: $details',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
